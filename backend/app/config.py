@@ -13,7 +13,7 @@ AUTH0_CLIENT_SECRET = os.getenv("AUTH0_CLIENT_SECRET")
 # Use the value from .env for callback URL
 AUTH0_CALLBACK_URL = os.getenv("AUTH0_CALLBACK_URL") or "http://localhost:8000/auth/callback"
 
-# Hardcoded MongoDB credentials (ideally, these should also be in your .env)
+# Hardcoded MongoDB credentials (ideally these should be in your .env)
 USERNAME = urllib.parse.quote_plus("prekshaupadhyay03")
 PASSWORD = urllib.parse.quote_plus("Seven@07")  # Encodes '@' correctly
 CLUSTER_URL = "cluster0.qwtsl.mongodb.net"
@@ -23,10 +23,17 @@ if not DATABASE_NAME:
     print("❌ ERROR: DATABASE_NAME not set in .env")
     exit(1)
 
+# Construct the connection URI without any insecure flags in the URI itself.
 MONGO_URI = f"mongodb+srv://{USERNAME}:{PASSWORD}@{CLUSTER_URL}/?retryWrites=true&w=majority&appName=Cluster0"
 
-# Establish MongoDB connection
-client = MongoClient(MONGO_URI)
+# Establish MongoDB connection with insecure TLS options for testing only.
+# WARNING: Do not use tlsAllowInvalidCertificates=True and tlsAllowInvalidHostnames=True in production!
+client = MongoClient(
+    MONGO_URI,
+    tls=True,
+    tlsAllowInvalidCertificates=True,
+    tlsAllowInvalidHostnames=True
+)
 db = client[DATABASE_NAME]
 
 print("✅ Connected to MongoDB Atlas. Database:", db.name)
