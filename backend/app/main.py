@@ -1,7 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.security import OAuth2AuthorizationCodeBearer
 import requests
-from app.config import AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_CALLBACK_URL, db  # Fixed import
+from app.config import AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_CALLBACK_URL
+from app.database import save_user  # Import the async save_user function
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import auth, review  # Fixed import
 
@@ -45,7 +46,7 @@ def github_login():
 
 # Callback endpoint: exchange code for token, get user info, and store/update essential user data in MongoDB.
 @app.get("/auth/callback")
-def github_callback(code: str):
+async def github_callback(code: str):  # Changed to async function
     token_url = f"https://{AUTH0_DOMAIN}/oauth/token"
     payload = {
         "grant_type": "authorization_code",
@@ -74,7 +75,7 @@ def github_callback(code: str):
     
     user_info = user_response.json()
     
-    # Store/Update user data in MongoDB
+    # Store/Update user data in MongoDB using async function
     user_data = {
         "name": user_info.get("name"),
         "email": user_info.get("email"),
@@ -83,13 +84,11 @@ def github_callback(code: str):
     }
     
     try:
-        users_collection = db.users
-        existing_user = users_collection.find_one({"sub": user_data["sub"]})
-        if existing_user is None:
-            users_collection.insert_one(user_data)
+        # Use the async save_user function from database.py
+        result = await save_user(user_data)
+        if result.get("is_new"):
             print("Inserted new user:", user_data["email"])
         else:
-            users_collection.update_one({"sub": user_data["sub"]}, {"$set": user_data})
             print("Updated existing user:", user_data["email"])
     except Exception as e:
         print("Error storing user data in MongoDB:", e)

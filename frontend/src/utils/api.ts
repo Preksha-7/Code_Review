@@ -4,7 +4,7 @@ export const analyzeCode = async (code: string) => {
   const response = await fetch(`${API_URL}/review/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code_snippet: code }),
+    body: JSON.stringify({ code: code }),
   });
 
   return response.json();

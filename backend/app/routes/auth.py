@@ -10,4 +10,4 @@ router = APIRouter()
 @router.get("/github-info")
 async def github_auth_info():
     # This endpoint is optional and can be used for debugging GitHub credentials.
-    return JSONResponse(content={"client_id": os.getenv("GITHUB_CLIENT_ID"), "message": "GitHub info endpoint"})
+    return JSONResponse(content={"client_id": os.getenv("AUTH0_CLIENT_ID"), "message": "Auth0 info endpoint"})

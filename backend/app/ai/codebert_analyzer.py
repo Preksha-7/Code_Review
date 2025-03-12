@@ -1,10 +1,11 @@
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from transformers import RobertaForSequenceClassification
 import torch
 
 # Load the CodeBERT model once at startup
 MODEL_NAME = "microsoft/codebert-base"
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
+model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
 model.eval()  # Set to evaluation mode
 
 def analyze_code(code_snippet: str) -> dict:
