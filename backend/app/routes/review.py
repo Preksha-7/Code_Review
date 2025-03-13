@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from app.database import get_database
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
 from app.ai.codebert_analyzer import analyze_code as codebert_analyze
 import logging
+from fastapi.security import OAuth2PasswordBearer
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -20,6 +21,12 @@ class Review(BaseModel):
 
 class CodeAnalysisRequest(BaseModel):
     code: str
+
+class AnalysisResponse(BaseModel):
+    prediction: float
+    overall_feedback: str
+    detailed_feedback: List[str]
+    issues_count: int
 
 # Create a new review
 @router.post("/")
@@ -59,13 +66,14 @@ async def get_reviews_by_user(user_id: str):
         logger.error(f"Error fetching user reviews: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching user reviews: {str(e)}")
 
-# Update an existing review by user_id
-@router.put("/{user_id}")
-async def update_review(user_id: str, updated_review: Review):
+# Update an existing review by review_id
+@router.put("/{review_id}")
+async def update_review(review_id: str, updated_review: Review):
     try:
+        from bson.objectid import ObjectId
         db = await get_database()
         result = await db.reviews.update_one(
-            {"user_id": user_id}, {"$set": updated_review.dict()}
+            {"_id": ObjectId(review_id)}, {"$set": updated_review.dict()}
         )
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Review not found.")
@@ -74,12 +82,13 @@ async def update_review(user_id: str, updated_review: Review):
         logger.error(f"Error updating review: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error updating review: {str(e)}")
 
-# Delete a review by user_id
-@router.delete("/{user_id}")
-async def delete_review(user_id: str):
+# Delete a review by review_id
+@router.delete("/{review_id}")
+async def delete_review(review_id: str):
     try:
+        from bson.objectid import ObjectId
         db = await get_database()
-        result = await db.reviews.delete_one({"user_id": user_id})
+        result = await db.reviews.delete_one({"_id": ObjectId(review_id)})
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Review not found.")
         return {"message": "Review deleted successfully"}
@@ -87,12 +96,21 @@ async def delete_review(user_id: str):
         logger.error(f"Error deleting review: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error deleting review: {str(e)}")
 
-# Add code analysis endpoint
-@router.post("/analyze")
+# Add code analysis endpoint with improved response
+@router.post("/analyze", response_model=AnalysisResponse)
 async def analyze_code(request: CodeAnalysisRequest):
     try:
         logger.info("Analyzing code snippet...")
+        if not request.code or len(request.code.strip()) == 0:
+            return {
+                "prediction": 0.0,
+                "overall_feedback": "No code provided to analyze.",
+                "detailed_feedback": ["Please provide a code snippet for analysis."],
+                "issues_count": 1
+            }
+            
         result = codebert_analyze(request.code)
+        logger.info(f"Analysis complete: {result}")
         return result
     except Exception as e:
         logger.error(f"Error analyzing code: {str(e)}")

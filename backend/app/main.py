@@ -2,9 +2,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.security import OAuth2AuthorizationCodeBearer
 import requests
 from app.config import AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_CALLBACK_URL
-from app.database import save_user  # Import the async save_user function
+from app.database import save_user
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import auth, review  # Fixed import
+from app.routes import auth, review
 
 app = FastAPI(title="AI Code Review Platform")
 
@@ -46,7 +46,7 @@ def github_login():
 
 # Callback endpoint: exchange code for token, get user info, and store/update essential user data in MongoDB.
 @app.get("/auth/callback")
-async def github_callback(code: str):  # Changed to async function
+async def github_callback(code: str):
     token_url = f"https://{AUTH0_DOMAIN}/oauth/token"
     payload = {
         "grant_type": "authorization_code",
@@ -56,42 +56,43 @@ async def github_callback(code: str):  # Changed to async function
         "redirect_uri": AUTH0_CALLBACK_URL,
     }
     
-    response = requests.post(token_url, json=payload)
-    if response.status_code != 200:
-        error_details = response.text
-        print("Error retrieving token:", response.status_code, error_details)
-        raise HTTPException(status_code=400, detail=f"Failed to retrieve access token: {error_details}")
-    
-    token_data = response.json()
-    access_token = token_data.get("access_token")
-    if not access_token:
-        raise HTTPException(status_code=400, detail="Access token not found in the response.")
-    
-    user_info_url = f"https://{AUTH0_DOMAIN}/userinfo"
-    headers = {"Authorization": f"Bearer {access_token}"}
-    user_response = requests.get(user_info_url, headers=headers)
-    if user_response.status_code != 200:
-        raise HTTPException(status_code=400, detail="Failed to retrieve user info")
-    
-    user_info = user_response.json()
-    
-    # Store/Update user data in MongoDB using async function
-    user_data = {
-        "name": user_info.get("name"),
-        "email": user_info.get("email"),
-        "sub": user_info.get("sub"),
-        "picture": user_info.get("picture"),
-    }
-    
     try:
+        response = requests.post(token_url, json=payload)
+        response.raise_for_status()  # Raise exception for HTTP errors
+        
+        token_data = response.json()
+        access_token = token_data.get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=400, detail="Access token not found in the response.")
+        
+        user_info_url = f"https://{AUTH0_DOMAIN}/userinfo"
+        headers = {"Authorization": f"Bearer {access_token}"}
+        user_response = requests.get(user_info_url, headers=headers)
+        user_response.raise_for_status()  # Raise exception for HTTP errors
+        
+        user_info = user_response.json()
+        
+        # Store/Update user data in MongoDB using async function
+        user_data = {
+            "name": user_info.get("name"),
+            "email": user_info.get("email"),
+            "sub": user_info.get("sub"),
+            "picture": user_info.get("picture"),
+        }
+        
         # Use the async save_user function from database.py
         result = await save_user(user_data)
         if result.get("is_new"):
             print("Inserted new user:", user_data["email"])
         else:
             print("Updated existing user:", user_data["email"])
+            
+        return {"message": "Login successful", "user": user_info}
+        
+    except requests.exceptions.RequestException as e:
+        error_details = str(e)
+        print("Error in OAuth flow:", error_details)
+        raise HTTPException(status_code=500, detail=f"OAuth flow error: {error_details}")
     except Exception as e:
-        print("Error storing user data in MongoDB:", e)
-        raise HTTPException(status_code=500, detail="Internal Server Error while storing user data")
-    
-    return {"message": "Login successful", "user": user_info}
+        print("Unexpected error during authentication:", str(e))
+        raise HTTPException(status_code=500, detail="Internal Server Error during authentication")
