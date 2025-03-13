@@ -34,6 +34,6 @@ else:
         print("❌ ERROR: MongoDB Atlas credentials not properly set in .env")
         exit(1)
     
-    # Construct the connection URI
-    MONGO_URI= f"mongodb+srv://prekshaupadhyay03:Seven07@cluster0.mongodb.net/Codereview?retryWrites=true&w=majority"
+    # Construct the connection URI properly using environment variables
+    MONGO_URI = f"mongodb+srv://{USERNAME}:{PASSWORD}@{CLUSTER_URL}/{DATABASE_NAME}?retryWrites=true&w=majority"
     print("✅ Using MongoDB Atlas. Database:", DATABASE_NAME)
