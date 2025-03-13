@@ -1,5 +1,10 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import MONGO_URI, DATABASE_NAME, USE_LOCAL_DB
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Global client variable - connection is only established when needed
 _client = None
@@ -8,16 +13,22 @@ async def get_database():
     """Get or create the database connection"""
     global _client
     if _client is None:
-        # Different connection options for local vs. Atlas
-        if USE_LOCAL_DB:
-            _client = AsyncIOMotorClient(MONGO_URI)
-        else:
-            _client = AsyncIOMotorClient(
-                MONGO_URI,
-                tls=True,
-                tlsAllowInvalidCertificates=True,
-                tlsAllowInvalidHostnames=True
-            )
+        try:
+            logger.info(f"Connecting to MongoDB at {MONGO_URI}...")
+            # Different connection options for local vs. Atlas
+            if USE_LOCAL_DB:
+                _client = AsyncIOMotorClient(MONGO_URI)
+            else:
+                _client = AsyncIOMotorClient(
+                    MONGO_URI,
+                    tls=True,
+                    tlsAllowInvalidCertificates=True,
+                    tlsAllowInvalidHostnames=True
+                )
+            logger.info("MongoDB connection successful")
+        except Exception as e:
+            logger.error(f"MongoDB connection error: {str(e)}")
+            raise
     return _client[DATABASE_NAME]
 
 async def get_user(email: str):

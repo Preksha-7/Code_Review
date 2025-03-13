@@ -26,10 +26,14 @@ if USE_LOCAL_DB:
 else:
     import urllib.parse
     # MongoDB Atlas credentials
-    USERNAME = urllib.parse.quote_plus(os.getenv("MONGO_USERNAME", "prekshaupadhyay03"))
-    PASSWORD = urllib.parse.quote_plus(os.getenv("MONGO_PASSWORD", "Seven@07"))
-    CLUSTER_URL = os.getenv("MONGO_CLUSTER", "cluster0.qwtsl.mongodb.net")
+    USERNAME = urllib.parse.quote_plus(os.getenv("MONGO_USERNAME"))
+    PASSWORD = urllib.parse.quote_plus(os.getenv("MONGO_PASSWORD"))
+    CLUSTER_URL = os.getenv("MONGO_CLUSTER")
+    
+    if not all([USERNAME, PASSWORD, CLUSTER_URL]):
+        print("❌ ERROR: MongoDB Atlas credentials not properly set in .env")
+        exit(1)
     
     # Construct the connection URI
-    MONGO_URI = f"mongodb+srv://{USERNAME}:{PASSWORD}@{CLUSTER_URL}/?retryWrites=true&w=majority&appName=Cluster0"
+    MONGO_URI= f"mongodb+srv://prekshaupadhyay03:Seven07@cluster0.mongodb.net/Codereview?retryWrites=true&w=majority"
     print("✅ Using MongoDB Atlas. Database:", DATABASE_NAME)
