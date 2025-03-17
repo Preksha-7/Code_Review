@@ -8,11 +8,8 @@ export const loginWithGitHub = async () => {
 };
 
 // Handle the callback from GitHub
-export const handleGitHubCallback = async () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const code = urlParams.get("code");
-
-  if (!code) return;
+export const handleGitHubCallback = async (code: string) => {
+  if (!code) return null;
 
   try {
     const response = await fetch(`${API_URL}/auth/callback?code=${code}`);
@@ -20,10 +17,12 @@ export const handleGitHubCallback = async () => {
 
     if (data.user) {
       localStorage.setItem("user", JSON.stringify(data.user));
-      window.location.href = "/"; // Redirect to home after login
+      return data.user;
     }
+    return null;
   } catch (error) {
     console.error("Error during GitHub callback:", error);
+    return null;
   }
 };
 

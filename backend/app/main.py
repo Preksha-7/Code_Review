@@ -45,6 +45,7 @@ def github_login():
     }
 
 # Callback endpoint: exchange code for token, get user info, and store/update essential user data in MongoDB.
+# Update the callback endpoint in main.py
 @app.get("/auth/callback")
 async def github_callback(code: str):
     token_url = f"https://{AUTH0_DOMAIN}/oauth/token"
