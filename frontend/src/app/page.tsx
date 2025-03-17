@@ -10,12 +10,28 @@ export default function Home() {
   const [codeSnippet, setCodeSnippet] = useState("");
   const [reviewResult, setReviewResult] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [authCheckComplete, setAuthCheckComplete] = useState(false);
 
   useEffect(() => {
     // Check for user on component mount
-    const currentUser = getUser();
-    setUser(currentUser);
-    setIsLoading(false);
+    const checkUserAuth = () => {
+      try {
+        console.log("Checking user authentication...");
+        const currentUser = getUser();
+        console.log(
+          "Current user state:",
+          currentUser ? "Logged in" : "Not logged in"
+        );
+        setUser(currentUser);
+      } catch (error) {
+        console.error("Error checking authentication:", error);
+      } finally {
+        setIsLoading(false);
+        setAuthCheckComplete(true);
+      }
+    };
+
+    checkUserAuth();
   }, []);
 
   const handleCodeSubmit = async () => {
@@ -38,10 +54,20 @@ export default function Home() {
     }
   };
 
+  // Handle logout with confirmation
+  const handleLogout = () => {
+    if (confirm("Are you sure you want to log out?")) {
+      logout();
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+      <div className="flex min-h-screen items-center justify-center bg-gray-100">
+        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+          <div className="h-10 w-10 mx-auto mb-4 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+          <p className="text-lg font-medium">Loading application...</p>
+        </div>
       </div>
     );
   }
@@ -56,15 +82,22 @@ export default function Home() {
         <div className="w-full max-w-4xl">
           <div className="flex items-center mb-6 justify-between">
             <div className="flex items-center">
-              <img
-                src={user.picture}
-                alt="Profile"
-                className="w-10 h-10 rounded-full shadow-md mr-3"
-              />
-              <p className="text-lg text-gray-800">Welcome, {user.name}</p>
+              {user.picture && (
+                <img
+                  src={user.picture}
+                  alt="Profile"
+                  className="w-10 h-10 rounded-full shadow-md mr-3"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              )}
+              <p className="text-lg text-gray-800">
+                Welcome, {user.name || "User"}
+              </p>
             </div>
             <button
-              onClick={logout}
+              onClick={handleLogout}
               className="px-4 py-2 bg-red-500 text-white rounded-lg shadow-md hover:bg-red-600"
             >
               Logout
@@ -91,63 +124,77 @@ export default function Home() {
             >
               {isAnalyzing ? "Analyzing..." : "Analyze Code"}
             </button>
+          </div>
 
-            {reviewResult && (
-              <div className="mt-6 p-4 bg-gray-50 border rounded-lg">
-                <h3 className="text-lg font-bold mb-2">AI Feedback:</h3>
-                <div className="py-2 px-3 bg-blue-50 border-l-4 border-blue-500 mb-3">
-                  <p className="font-medium">{reviewResult.overall_feedback}</p>
-                </div>
+          {/* Review Results */}
+          {reviewResult && (
+            <div className="mt-6 bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-4">Analysis Results</h2>
 
-                <h4 className="text-md font-semibold mb-2">
-                  Detailed Analysis:
-                </h4>
-                <ul className="list-disc pl-5 space-y-1">
-                  {reviewResult.detailed_feedback.map(
-                    (feedback: string, index: number) => (
-                      <li key={index} className="text-gray-700">
-                        {feedback}
-                      </li>
-                    )
-                  )}
-                </ul>
-
-                <div className="mt-4 flex items-center">
-                  <div className="text-sm font-medium mr-2">Quality Score:</div>
-                  <div
-                    className={`py-1 px-3 rounded-full text-white text-sm ${
-                      reviewResult.prediction > 0.7
-                        ? "bg-green-500"
-                        : reviewResult.prediction > 0.4
-                        ? "bg-yellow-500"
-                        : "bg-red-500"
-                    }`}
-                  >
-                    {Math.round(reviewResult.prediction * 100)}%
-                  </div>
+              <div className="mb-4">
+                <h3 className="text-lg font-medium mb-2">Overall Feedback</h3>
+                <div className="p-4 bg-gray-100 rounded-lg">
+                  <p>{reviewResult.overall_feedback}</p>
                 </div>
               </div>
-            )}
-          </div>
+
+              <div className="mb-4">
+                <h3 className="text-lg font-medium mb-2">
+                  Issues Found: {reviewResult.issues_count}
+                </h3>
+                <div className="p-4 bg-gray-100 rounded-lg">
+                  <ul className="list-disc pl-5 space-y-2">
+                    {reviewResult.detailed_feedback.map(
+                      (feedback: string, index: number) => (
+                        <li key={index}>{feedback}</li>
+                      )
+                    )}
+                  </ul>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-medium mb-2">Quality Score</h3>
+                <div className="flex items-center">
+                  <div className="w-full bg-gray-200 rounded-full h-4">
+                    <div
+                      className={`h-4 rounded-full ${
+                        reviewResult.prediction > 0.7
+                          ? "bg-green-500"
+                          : reviewResult.prediction > 0.4
+                          ? "bg-yellow-500"
+                          : "bg-red-500"
+                      }`}
+                      style={{ width: `${reviewResult.prediction * 100}%` }}
+                    ></div>
+                  </div>
+                  <span className="ml-3 font-medium">
+                    {Math.round(reviewResult.prediction * 100)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center bg-white p-10 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-bold mb-6">Get Started</h2>
-          <p className="text-gray-600 mb-6 text-center">
-            Sign in with GitHub to access the AI code review platform
+        <div className="bg-white rounded-lg shadow-md p-8 text-center max-w-md w-full">
+          <h2 className="text-2xl font-semibold mb-6">Get Started</h2>
+          <p className="mb-6 text-gray-600">
+            Sign in with your GitHub account to use our AI-powered code review
+            platform.
           </p>
           <button
             onClick={loginWithGitHub}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 flex items-center"
+            className="px-6 py-3 bg-black text-white rounded-lg shadow-md hover:bg-gray-800 flex items-center justify-center w-full"
           >
             <svg
               className="w-5 h-5 mr-2"
               fill="currentColor"
-              viewBox="0 0 20 20"
+              viewBox="0 0 24 24"
             >
               <path
                 fillRule="evenodd"
-                d="M10 0C4.477 0 0 4.477 0 10c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.272.098-2.65 0 0 .84-.269 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.699 1.028 1.592 1.028 2.683 0 3.841-2.337 4.687-4.565 4.934.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C17.14 18.163 20 14.418 20 10c0-5.523-4.477-10-10-10z"
+                d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
                 clipRule="evenodd"
               />
             </svg>

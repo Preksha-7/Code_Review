@@ -22,7 +22,8 @@ if not DATABASE_NAME:
 # Choose between local and Atlas MongoDB
 if USE_LOCAL_DB:
     MONGO_URI = "mongodb://localhost:27017/"
-    print("✅ Using local MongoDB. Database:", DATABASE_NAME)
+    # Use debug level logging instead
+    print("✅ Using local MongoDB. Database:", DATABASE_NAME) if os.getenv("DEBUG") else None
 else:
     import urllib.parse
     # MongoDB Atlas credentials
@@ -36,4 +37,5 @@ else:
     
     # Construct the connection URI properly using environment variables
     MONGO_URI = f"mongodb+srv://{USERNAME}:{PASSWORD}@{CLUSTER_URL}/{DATABASE_NAME}?retryWrites=true&w=majority"
-    print("✅ Using MongoDB Atlas. Database:", DATABASE_NAME)
+    # Use debug level logging instead
+    print("✅ Using MongoDB Atlas. Database:", DATABASE_NAME) if os.getenv("DEBUG") else None

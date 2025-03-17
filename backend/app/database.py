@@ -14,7 +14,7 @@ async def get_database():
     global _client
     if _client is None:
         try:
-            logger.info(f"Connecting to MongoDB at {MONGO_URI}...")
+            logger.debug(f"Connecting to MongoDB at {MONGO_URI}...")
             # Different connection options for local vs. Atlas
             if USE_LOCAL_DB:
                 _client = AsyncIOMotorClient(MONGO_URI)
@@ -25,7 +25,7 @@ async def get_database():
                     tlsAllowInvalidCertificates=True,
                     tlsAllowInvalidHostnames=True
                 )
-            logger.info("MongoDB connection successful")
+            logger.debug("MongoDB connection successful")
         except Exception as e:
             logger.error(f"MongoDB connection error: {str(e)}")
             raise
