@@ -8,7 +8,6 @@ from app.routes import auth, review
 
 app = FastAPI(title="AI Code Review Platform")
 
-# Set up CORS for your frontend origin
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -45,7 +44,6 @@ def github_login():
     }
 
 # Callback endpoint: exchange code for token, get user info, and store/update essential user data in MongoDB.
-# Update the callback endpoint in main.py
 @app.get("/auth/callback")
 async def github_callback(code: str):
     token_url = f"https://{AUTH0_DOMAIN}/oauth/token"

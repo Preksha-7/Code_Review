@@ -29,7 +29,8 @@ export default function Callback() {
           setProcessingStatus("Login successful! Redirecting...");
           // Use a small timeout to ensure localStorage is updated
           setTimeout(() => {
-            router.push("/");
+            // Force a hard redirect to ensure a fresh page load
+            window.location.href = "/";
           }, 500);
         } else {
           setError("Failed to authenticate");
@@ -43,7 +44,6 @@ export default function Callback() {
     processCallback();
   }, [router]);
 
-  // Improved loading screen with status messages
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">

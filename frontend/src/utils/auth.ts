@@ -20,7 +20,12 @@ export const handleGitHubCallback = async (code: string) => {
   if (!code) return null;
 
   try {
-    const response = await fetch(`${API_URL}/auth/callback?code=${code}`);
+    const response = await fetch(`${API_URL}/auth/callback?code=${code}`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
 
     if (!response.ok) {
       console.error(`Callback error: ${response.status}`);
@@ -31,9 +36,7 @@ export const handleGitHubCallback = async (code: string) => {
 
     if (data.user) {
       console.log("User data received, saving to localStorage");
-      // Clear any existing user data first
-      localStorage.removeItem("user");
-      // Add user data to localStorage
+      // Store user data in localStorage
       localStorage.setItem("user", JSON.stringify(data.user));
       return data.user;
     }
