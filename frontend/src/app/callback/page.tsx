@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -20,32 +19,48 @@ export default function Callback() {
       // Store the token
       localStorage.setItem("authToken", token);
 
-      // Fetch user data
-      fetch("http://127.0.0.1:8000/auth/userinfo", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      // Fetch user data with token as query parameter
+      fetch(`http://127.0.0.1:8000/auth/userinfo?authorization=${token}`)
         .then((res) => {
           if (!res.ok) {
-            throw new Error("Failed to fetch user data");
+            return res.text().then((text) => {
+              try {
+                // Try to parse as JSON for better error details
+                const errorData = JSON.parse(text);
+                throw new Error(
+                  `Failed to fetch user data: ${res.status} - ${JSON.stringify(
+                    errorData
+                  )}`
+                );
+              } catch (e) {
+                // If not JSON, use raw text
+                throw new Error(
+                  `Failed to fetch user data: ${res.status} - ${text}`
+                );
+              }
+            });
           }
           return res.json();
         })
         .then((userData) => {
           // Store user data in localStorage
           localStorage.setItem("user", JSON.stringify(userData));
-          setProcessingStatus("Login successful! Redirecting...");
-
-          // Use router for client-side navigation
-          router.push("/");
+          setProcessingStatus(
+            "Login successful! Redirecting to code analyzer..."
+          );
+          // Use router for client-side navigation directly to the analyzer
+          setTimeout(() => {
+            router.push("/");
+          }, 1000);
         })
         .catch((err) => {
           console.error("Error fetching user data:", err);
-          setError("Failed to fetch user data. Please try again.");
+          setError(err.message);
         });
     } else {
-      setError("Invalid authentication response");
+      setError(
+        "Invalid authentication response. Missing token or auth status."
+      );
     }
   }, [router]);
 
