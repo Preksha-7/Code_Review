@@ -15,45 +15,47 @@ export const loginWithGitHub = async () => {
   }
 };
 
-// Handle the callback from GitHub
 export const handleGitHubCallback = async (code: string) => {
   if (!code) return null;
 
   try {
-    const response = await fetch(`${API_URL}/auth/callback?code=${code}`, {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get("token");
+
+    if (!token) {
+      throw new Error("No auth token found in URL");
+    }
+
+    const response = await fetch(`${API_URL}/auth/userinfo`, {
       method: "GET",
       headers: {
         Accept: "application/json",
+        Authorization: `Bearer ${token}`,
       },
     });
 
     if (!response.ok) {
-      console.error(`Callback error: ${response.status}`);
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
 
-    const data = await response.json();
+    const userData = await response.json();
 
-    if (data.user) {
-      console.log("User data received, saving to localStorage");
-      // Store user data in localStorage
-      localStorage.setItem("user", JSON.stringify(data.user));
-      return data.user;
-    }
-    return null;
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("authToken", token);
+
+    return userData;
   } catch (error) {
     console.error("Error during GitHub callback:", error);
     return null;
   }
 };
 
-// Logout function
 export const logout = () => {
   localStorage.removeItem("user");
+  localStorage.removeItem("authToken");
   window.location.href = "/";
 };
 
-// Get user from localStorage with improved error handling
 export const getUser = () => {
   if (typeof window !== "undefined") {
     try {
@@ -64,7 +66,6 @@ export const getUser = () => {
       return user;
     } catch (e) {
       console.error("Error parsing user from localStorage:", e);
-      // If there's an error parsing, clear the corrupted data
       localStorage.removeItem("user");
       return null;
     }

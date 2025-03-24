@@ -1,47 +1,45 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { handleGitHubCallback } from "@/utils/auth";
 import { useRouter } from "next/navigation";
 
 export default function Callback() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] = useState<string>(
-    "Authenticating with GitHub..."
+    "Finalizing login..."
   );
 
   useEffect(() => {
-    const processCallback = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get("code");
+    // Check for auth=success parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const authStatus = urlParams.get("auth");
+    const token = urlParams.get("token");
 
-      if (!code) {
-        setError("No authorization code provided");
-        return;
-      }
+    if (authStatus === "success" && token) {
+      // Store the token and redirect to main page
+      localStorage.setItem("authToken", token);
 
-      try {
-        setProcessingStatus("Processing authentication...");
-        const user = await handleGitHubCallback(code);
-
-        if (user) {
-          setProcessingStatus("Login successful! Redirecting...");
-          // Use a small timeout to ensure localStorage is updated
-          setTimeout(() => {
-            // Force a hard redirect to ensure a fresh page load
-            window.location.href = "/";
-          }, 500);
-        } else {
-          setError("Failed to authenticate");
-        }
-      } catch (err) {
-        setError("Authentication error occurred");
-        console.error(err);
-      }
-    };
-
-    processCallback();
+      // Fetch user data in background (optional)
+      fetch("http://127.0.0.1:8000/auth/userinfo", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((res) => res.json())
+        .then((userData) => {
+          localStorage.setItem("user", JSON.stringify(userData));
+          // Redirect to main page
+          window.location.href = "/";
+        })
+        .catch((err) => {
+          console.error("Error fetching user data:", err);
+          // Still redirect even if user data fetch fails
+          window.location.href = "/";
+        });
+    } else {
+      setError("Invalid authentication response");
+    }
   }, [router]);
 
   return (

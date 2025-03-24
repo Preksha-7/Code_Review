@@ -1,5 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.security import OAuth2AuthorizationCodeBearer
+from fastapi.responses import RedirectResponse
+from fastapi import APIRouter
+
 import requests
 from app.config import AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_CALLBACK_URL
 from app.database import save_user
@@ -30,20 +33,20 @@ oauth2_scheme = OAuth2AuthorizationCodeBearer(
 async def root():
     return {"message": "Welcome to AI Code Review Platform"}
 
-# Endpoint to generate Auth0 authorization URL
-@app.get("/auth/github")
-def github_login():
-    return {
-        "auth_url": (
-            f"https://{AUTH0_DOMAIN}/authorize"
-            f"?response_type=code"
-            f"&client_id={AUTH0_CLIENT_ID}"
-            f"&redirect_uri={AUTH0_CALLBACK_URL}"
-            f"&scope=openid profile email"
-        )
-    }
 
-# Callback endpoint: exchange code for token, get user info, and store/update essential user data in MongoDB.
+router = APIRouter()
+
+@router.get("/github")
+async def github_login():
+    auth_url = (
+        f"https://{AUTH0_DOMAIN}/authorize"
+        f"?client_id={AUTH0_CLIENT_ID}"
+        f"&response_type=code"
+        f"&redirect_uri={AUTH0_CALLBACK_URL}"
+    )
+    return RedirectResponse(url=auth_url)
+
+# Endpoint to generate Auth0 authorization URL
 @app.get("/auth/callback")
 async def github_callback(code: str):
     token_url = f"https://{AUTH0_DOMAIN}/oauth/token"
@@ -85,8 +88,13 @@ async def github_callback(code: str):
             print("Inserted new user:", user_data["email"])
         else:
             print("Updated existing user:", user_data["email"])
-            
-        return {"message": "Login successful", "user": user_info}
+        
+        # Set a cookie with user information (optional but useful)
+        frontend_url = "http://localhost:3000"
+        redirect_url = f"{frontend_url}?auth=success&token={access_token}"
+        
+        # Return a redirect response to the frontend
+        return RedirectResponse(url=redirect_url)
         
     except requests.exceptions.RequestException as e:
         error_details = str(e)
