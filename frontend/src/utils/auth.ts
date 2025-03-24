@@ -63,6 +63,15 @@ export const getUser = () => {
       if (!userStr) return null;
 
       const user = JSON.parse(userStr);
+
+      // Check if auth token is still present
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        console.warn("Auth token missing, logging out user");
+        localStorage.removeItem("user");
+        return null;
+      }
+
       return user;
     } catch (e) {
       console.error("Error parsing user from localStorage:", e);

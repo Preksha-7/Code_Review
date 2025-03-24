@@ -10,7 +10,6 @@ export default function Home() {
   const [codeSnippet, setCodeSnippet] = useState("");
   const [reviewResult, setReviewResult] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [authCheckComplete, setAuthCheckComplete] = useState(false);
 
   useEffect(() => {
     // Check for user on component mount
@@ -27,7 +26,6 @@ export default function Home() {
         console.error("Error checking authentication:", error);
       } finally {
         setIsLoading(false);
-        setAuthCheckComplete(true);
       }
     };
 
@@ -58,6 +56,7 @@ export default function Home() {
   const handleLogout = () => {
     if (confirm("Are you sure you want to log out?")) {
       logout();
+      setUser(null);
     }
   };
 

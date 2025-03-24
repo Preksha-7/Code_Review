@@ -17,25 +17,32 @@ export default function Callback() {
     const token = urlParams.get("token");
 
     if (authStatus === "success" && token) {
-      // Store the token and redirect to main page
+      // Store the token
       localStorage.setItem("authToken", token);
 
-      // Fetch user data in background (optional)
+      // Fetch user data
       fetch("http://127.0.0.1:8000/auth/userinfo", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
-        .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error("Failed to fetch user data");
+          }
+          return res.json();
+        })
         .then((userData) => {
+          // Store user data in localStorage
           localStorage.setItem("user", JSON.stringify(userData));
-          // Redirect to main page
-          window.location.href = "/";
+          setProcessingStatus("Login successful! Redirecting...");
+
+          // Use router for client-side navigation
+          router.push("/");
         })
         .catch((err) => {
           console.error("Error fetching user data:", err);
-          // Still redirect even if user data fetch fails
-          window.location.href = "/";
+          setError("Failed to fetch user data. Please try again.");
         });
     } else {
       setError("Invalid authentication response");
