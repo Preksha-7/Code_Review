@@ -19,8 +19,12 @@ export default function Callback() {
       // Store the token
       localStorage.setItem("authToken", token);
 
-      // Fetch user data with token as query parameter
-      fetch(`http://127.0.0.1:8000/auth/userinfo?authorization=${token}`)
+      // Fetch user data with token in Authorization header
+      fetch(`http://127.0.0.1:8000/auth/userinfo`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
         .then((res) => {
           if (!res.ok) {
             return res.text().then((text) => {

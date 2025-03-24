@@ -57,7 +57,7 @@ async def github_callback(code: str):
         print(f"{action}: {user_data['email']}")
 
         frontend_url = "http://localhost:3000"
-        response = RedirectResponse(url=f"{frontend_url}/callback?auth=success&token={access_token}")
+        response = RedirectResponse(url=f"{frontend_url}?auth=success&token={access_token}")
         
         # Don't set the token in a cookie - we'll handle it in localStorage on the frontend
         return response
