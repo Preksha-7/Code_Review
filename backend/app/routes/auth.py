@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 import requests
 from app.config import AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_CALLBACK_URL
@@ -19,7 +19,7 @@ async def github_login():
 
 # OAuth callback route
 @router.get("/callback")
-async def github_callback(code: str):
+async def github_callback(code: str, request: Request):
     token_url = f"https://{AUTH0_DOMAIN}/oauth/token"
     payload = {
         "grant_type": "authorization_code",
@@ -56,11 +56,12 @@ async def github_callback(code: str):
         action = "Inserted new user" if result.get("is_new") else "Updated existing user"
         print(f"{action}: {user_data['email']}")
 
-        frontend_url = "http://localhost:3000"
-        response = RedirectResponse(url=f"{frontend_url}?auth=success&token={access_token}")
+        # Fix: Use hardcoded frontend URL to avoid potential issues
+        frontend_url = "http://localhost:3000/callback"
+        redirect_url = f"{frontend_url}?auth=success&token={access_token}"
         
-        # Don't set the token in a cookie - we'll handle it in localStorage on the frontend
-        return response
+        # Return a redirect response to the frontend callback
+        return RedirectResponse(url=redirect_url)
 
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"OAuth flow error: {str(e)}")
