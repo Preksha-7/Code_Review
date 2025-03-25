@@ -3,8 +3,11 @@
 import { loginWithGitHub, logout, getUser } from "@/utils/auth";
 import { analyzeCode } from "@/utils/api";
 import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function Home() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [codeSnippet, setCodeSnippet] = useState("");
@@ -12,15 +15,27 @@ export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
-    // Check for user on component mount
+    // Check for authentication parameters from callback
+    const authStatus = searchParams.get("auth");
+    const token = searchParams.get("token");
+    const name = searchParams.get("name");
+    const email = searchParams.get("email");
+    const picture = searchParams.get("picture");
+
     const checkUserAuth = () => {
       try {
-        console.log("Checking user authentication...");
+        // If we have auth parameters, create user object and store in localStorage
+        if (authStatus === "success" && token) {
+          const userData = { name, email, picture };
+          localStorage.setItem("user", JSON.stringify(userData));
+          localStorage.setItem("authToken", token);
+
+          // Redirect to clean URL
+          router.replace("/");
+        }
+
+        // Check for existing user
         const currentUser = getUser();
-        console.log(
-          "Current user state:",
-          currentUser ? "Logged in" : "Not logged in"
-        );
         setUser(currentUser);
       } catch (error) {
         console.error("Error checking authentication:", error);
@@ -30,7 +45,7 @@ export default function Home() {
     };
 
     checkUserAuth();
-  }, []);
+  }, [searchParams, router]);
 
   const handleCodeSubmit = async () => {
     if (!codeSnippet.trim()) return;
