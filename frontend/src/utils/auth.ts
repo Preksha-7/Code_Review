@@ -1,18 +1,7 @@
 const API_URL = "http://127.0.0.1:8000";
 
-export const loginWithGitHub = async () => {
-  try {
-    const response = await fetch(`${API_URL}/auth/github`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    const data = await response.json();
-    console.log("Auth URL received, redirecting to GitHub login...");
-    window.location.href = data.auth_url;
-  } catch (error) {
-    console.error("Error getting auth URL:", error);
-    alert("Failed to initiate GitHub login. Please try again.");
-  }
+export const loginWithGitHub = () => {
+  window.location.href = `${API_URL}/auth/github`;
 };
 
 export const handleGitHubCallback = async (code: string) => {

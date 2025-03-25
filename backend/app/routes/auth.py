@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 import requests
 from app.config import AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_CALLBACK_URL
 from app.database import save_user
+from urllib.parse import urlencode
 
 router = APIRouter()
 
@@ -14,8 +15,9 @@ async def github_login():
         f"?client_id={AUTH0_CLIENT_ID}"
         f"&response_type=code"
         f"&redirect_uri={AUTH0_CALLBACK_URL}"
+        "&scope=openid%20profile%20email"
     )
-    return {"auth_url": auth_url}  # JSON response for frontend logic compatibility
+    return RedirectResponse(url=auth_url)
 
 # OAuth callback route
 @router.get("/callback")
@@ -56,12 +58,18 @@ async def github_callback(code: str, request: Request):
         action = "Inserted new user" if result.get("is_new") else "Updated existing user"
         print(f"{action}: {user_data['email']}")
 
-        # Fix: Use hardcoded frontend URL to avoid potential issues
-        frontend_url = "http://localhost:3000/callback"
-        redirect_url = f"{frontend_url}?auth=success&token={access_token}"
+        # Encode token and user data in the URL
+        frontend_url = "http://localhost:3000"
+        redirect_params = urlencode({
+            "auth": "success", 
+            "token": access_token,
+            "name": user_data.get("name", ""),
+            "email": user_data.get("email", ""),
+            "picture": user_data.get("picture", "")
+        })
         
-        # Return a redirect response to the frontend callback
-        return RedirectResponse(url=redirect_url)
+        # Return a redirect response to the frontend
+        return RedirectResponse(url=f"{frontend_url}?{redirect_params}")
 
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"OAuth flow error: {str(e)}")

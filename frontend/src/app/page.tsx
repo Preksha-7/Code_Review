@@ -15,15 +15,14 @@ export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
-    // Check for authentication parameters from callback
-    const authStatus = searchParams.get("auth");
-    const token = searchParams.get("token");
-    const name = searchParams.get("name");
-    const email = searchParams.get("email");
-    const picture = searchParams.get("picture");
-
     const checkUserAuth = () => {
       try {
+        const authStatus = searchParams.get("auth");
+        const token = searchParams.get("token");
+        const name = searchParams.get("name");
+        const email = searchParams.get("email");
+        const picture = searchParams.get("picture");
+
         // If we have auth parameters, create user object and store in localStorage
         if (authStatus === "success" && token) {
           const userData = { name, email, picture };
