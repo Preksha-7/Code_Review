@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Body
 from fastapi.responses import JSONResponse, RedirectResponse
 import requests
 from app.config import AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_CALLBACK_URL
 from app.database import save_user
+from app.ai.codebert_analyzer import analyze_code
 
 router = APIRouter()
 
@@ -93,3 +94,28 @@ async def get_user_info(authorization: str):
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving user info: {str(e)}")
+    
+    
+@router.post("/analyze")
+async def review_code(code: dict = Body(...)):
+    """
+    Analyze the submitted code snippet using CodeBERT
+    
+    Args:
+        code (dict): A dictionary containing the code snippet
+    
+    Returns:
+        dict: Code analysis results
+    """
+    try:
+        code_snippet = code.get('code', '')
+        
+        if not code_snippet:
+            raise HTTPException(status_code=400, detail="No code snippet provided")
+        
+        analysis_result = analyze_code(code_snippet)
+        return analysis_result
+    
+    except Exception as e:
+        print(f"Code analysis error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Code analysis failed: {str(e)}")
