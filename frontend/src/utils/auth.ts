@@ -1,6 +1,11 @@
 const API_URL = "http://127.0.0.1:8000";
 
 export const loginWithGitHub = () => {
+  // Force a fresh login by clearing existing authentication data
+  localStorage.removeItem("user");
+  localStorage.removeItem("authToken");
+
+  // Redirect to GitHub login
   window.location.href = `${API_URL}/auth/github`;
 };
 
@@ -31,6 +36,7 @@ export const handleGitHubCallback = async (code: string) => {
 
     localStorage.setItem("user", JSON.stringify(userData));
     localStorage.setItem("authToken", token);
+    localStorage.setItem("lastLoginTimestamp", Date.now().toString());
 
     return userData;
   } catch (error) {
@@ -42,6 +48,7 @@ export const handleGitHubCallback = async (code: string) => {
 export const logout = () => {
   localStorage.removeItem("user");
   localStorage.removeItem("authToken");
+  localStorage.removeItem("lastLoginTimestamp");
   window.location.href = "/";
 };
 
@@ -49,22 +56,33 @@ export const getUser = () => {
   if (typeof window !== "undefined") {
     try {
       const userStr = localStorage.getItem("user");
-      if (!userStr) return null;
+      const token = localStorage.getItem("authToken");
+      const lastLoginTimestamp = localStorage.getItem("lastLoginTimestamp");
+
+      // Check if all required authentication data exists
+      if (!userStr || !token || !lastLoginTimestamp) {
+        console.warn("Authentication data incomplete, logging out user");
+        logout();
+        return null;
+      }
 
       const user = JSON.parse(userStr);
 
-      // Check if auth token is still present
-      const token = localStorage.getItem("authToken");
-      if (!token) {
-        console.warn("Auth token missing, logging out user");
-        localStorage.removeItem("user");
+      // Optional: Add token expiration check (adjust time as needed)
+      const TOKEN_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 hours
+      const currentTime = Date.now();
+      const loginTime = parseInt(lastLoginTimestamp, 10);
+
+      if (currentTime - loginTime > TOKEN_EXPIRATION_TIME) {
+        console.warn("Authentication expired, logging out user");
+        logout();
         return null;
       }
 
       return user;
     } catch (e) {
       console.error("Error parsing user from localStorage:", e);
-      localStorage.removeItem("user");
+      logout();
       return null;
     }
   }

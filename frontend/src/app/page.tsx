@@ -28,7 +28,7 @@ export default function Home() {
           const userData = { name, email, picture };
           localStorage.setItem("user", JSON.stringify(userData));
           localStorage.setItem("authToken", token);
-
+          localStorage.setItem("lastLoginTimestamp", Date.now().toString());
           // Redirect to clean URL
           router.replace("/");
         }
@@ -70,7 +70,6 @@ export default function Home() {
   const handleLogout = () => {
     if (confirm("Are you sure you want to log out?")) {
       logout();
-      setUser(null);
     }
   };
 
