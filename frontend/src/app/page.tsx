@@ -3,11 +3,10 @@
 import { loginWithGitHub, logout, getUser } from "@/utils/auth";
 import { analyzeCode } from "@/utils/api";
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [codeSnippet, setCodeSnippet] = useState("");
@@ -17,22 +16,6 @@ export default function Home() {
   useEffect(() => {
     const checkUserAuth = () => {
       try {
-        const authStatus = searchParams.get("auth");
-        const token = searchParams.get("token");
-        const name = searchParams.get("name");
-        const email = searchParams.get("email");
-        const picture = searchParams.get("picture");
-
-        // If we have auth parameters, create user object and store in localStorage
-        if (authStatus === "success" && token) {
-          const userData = { name, email, picture };
-          localStorage.setItem("user", JSON.stringify(userData));
-          localStorage.setItem("authToken", token);
-          localStorage.setItem("lastLoginTimestamp", Date.now().toString());
-          // Redirect to clean URL
-          router.replace("/");
-        }
-
         // Check for existing user
         const currentUser = getUser();
         setUser(currentUser);
@@ -44,7 +27,31 @@ export default function Home() {
     };
 
     checkUserAuth();
-  }, [searchParams, router]);
+  }, []);
+
+  useEffect(() => {
+    const handleAuthCallback = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const authStatus = urlParams.get("auth");
+      const token = urlParams.get("token");
+      const name = urlParams.get("name");
+      const email = urlParams.get("email");
+      const picture = urlParams.get("picture");
+
+      // If we have auth parameters, create user object and store in localStorage
+      if (authStatus === "success" && token) {
+        const userData = { name, email, picture };
+        localStorage.setItem("user", JSON.stringify(userData));
+        localStorage.setItem("authToken", token);
+
+        // Clear URL parameters and reload
+        window.history.replaceState({}, document.title, "/");
+        window.location.reload();
+      }
+    };
+
+    handleAuthCallback();
+  }, []);
 
   const handleCodeSubmit = async () => {
     if (!codeSnippet.trim()) return;
@@ -70,6 +77,7 @@ export default function Home() {
   const handleLogout = () => {
     if (confirm("Are you sure you want to log out?")) {
       logout();
+      setUser(null);
     }
   };
 
@@ -84,6 +92,7 @@ export default function Home() {
     );
   }
 
+  // Rest of the component remains the same as in the previous implementation
   return (
     <main className="flex min-h-screen flex-col items-center p-6 bg-gray-100">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">
