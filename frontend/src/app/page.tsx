@@ -1,17 +1,35 @@
 "use client";
 
 import { loginWithGitHub, logout, getUser } from "@/utils/auth";
-import { analyzeCode } from "@/utils/api";
+import { analyzeCode, getSupportedLanguages } from "@/utils/api";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+
+interface Language {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface ReviewResult {
+  prediction: number;
+  overall_feedback: string;
+  detailed_feedback: string[];
+  issues_count: number;
+  syntax_errors: string[];
+  logic_errors: string[];
+}
 
 export default function Home() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [codeSnippet, setCodeSnippet] = useState("");
-  const [reviewResult, setReviewResult] = useState<any>(null);
+  const [reviewResult, setReviewResult] = useState<ReviewResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState("python");
+  const [languages, setLanguages] = useState<Language[]>([]);
+  const [languagesLoading, setLanguagesLoading] = useState(false);
 
   useEffect(() => {
     const checkUserAuth = () => {
@@ -27,6 +45,29 @@ export default function Home() {
     };
 
     checkUserAuth();
+
+    // Load supported languages
+    const loadLanguages = async () => {
+      try {
+        setLanguagesLoading(true);
+        const data = await getSupportedLanguages();
+        setLanguages(data.languages || []);
+      } catch (error) {
+        console.error("Error loading languages:", error);
+        setLanguages([
+          { id: "python", name: "Python", description: "Python 3.x" },
+          {
+            id: "javascript",
+            name: "JavaScript",
+            description: "ES6+ JavaScript",
+          },
+        ]);
+      } finally {
+        setLanguagesLoading(false);
+      }
+    };
+
+    loadLanguages();
   }, []);
 
   useEffect(() => {
@@ -58,7 +99,7 @@ export default function Home() {
 
     try {
       setIsAnalyzing(true);
-      const response = await analyzeCode(codeSnippet);
+      const response = await analyzeCode(codeSnippet, selectedLanguage);
       setReviewResult(response);
     } catch (error) {
       console.error("Error analyzing code:", error);
@@ -67,6 +108,8 @@ export default function Home() {
         detailed_feedback: ["Please try again later."],
         issues_count: 0,
         prediction: 0,
+        syntax_errors: [],
+        logic_errors: [],
       });
     } finally {
       setIsAnalyzing(false);
@@ -92,7 +135,6 @@ export default function Home() {
     );
   }
 
-  // Rest of the component remains the same as in the previous implementation
   return (
     <main className="flex min-h-screen flex-col items-center p-6 bg-gray-100">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">
@@ -128,16 +170,53 @@ export default function Home() {
           {/* Code Review Form */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-semibold mb-4">Code Analyzer</h2>
-            <textarea
-              className="w-full p-3 border rounded-lg shadow-sm font-mono text-sm h-64 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none"
-              placeholder="Paste your code snippet here..."
-              value={codeSnippet}
-              onChange={(e) => setCodeSnippet(e.target.value)}
-            ></textarea>
+
+            <div className="mb-4">
+              <label
+                htmlFor="language-select"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Select Programming Language
+              </label>
+              <select
+                id="language-select"
+                className="w-full p-2 border rounded-lg shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none"
+                value={selectedLanguage}
+                onChange={(e) => setSelectedLanguage(e.target.value)}
+                disabled={languagesLoading}
+              >
+                {languagesLoading ? (
+                  <option value="">Loading languages...</option>
+                ) : (
+                  languages.map((lang) => (
+                    <option key={lang.id} value={lang.id}>
+                      {lang.name} - {lang.description}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <label
+                htmlFor="code-textarea"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Your Code
+              </label>
+              <textarea
+                id="code-textarea"
+                className="w-full p-3 border rounded-lg shadow-sm font-mono text-sm h-64 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none"
+                placeholder={`Paste your ${selectedLanguage} code snippet here...`}
+                value={codeSnippet}
+                onChange={(e) => setCodeSnippet(e.target.value)}
+              ></textarea>
+            </div>
+
             <button
               onClick={handleCodeSubmit}
               disabled={isAnalyzing || !codeSnippet.trim()}
-              className={`mt-4 w-full px-4 py-2 rounded-lg shadow-md text-white ${
+              className={`w-full px-4 py-2 rounded-lg shadow-md text-white ${
                 isAnalyzing || !codeSnippet.trim()
                   ? "bg-blue-400 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700"
@@ -159,21 +238,62 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* Syntax Errors */}
+              {reviewResult.syntax_errors &&
+                reviewResult.syntax_errors.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="text-lg font-medium mb-2 text-red-600">
+                      Syntax Errors: {reviewResult.syntax_errors.length}
+                    </h3>
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <ul className="list-disc pl-5 space-y-2">
+                        {reviewResult.syntax_errors.map((error, index) => (
+                          <li key={`syntax-${index}`} className="text-red-700">
+                            {error}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+              {/* Logic Errors */}
+              {reviewResult.logic_errors &&
+                reviewResult.logic_errors.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="text-lg font-medium mb-2 text-yellow-600">
+                      Logic Issues: {reviewResult.logic_errors.length}
+                    </h3>
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <ul className="list-disc pl-5 space-y-2">
+                        {reviewResult.logic_errors.map((error, index) => (
+                          <li
+                            key={`logic-${index}`}
+                            className="text-yellow-700"
+                          >
+                            {error}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+              {/* Detailed Feedback */}
               <div className="mb-4">
                 <h3 className="text-lg font-medium mb-2">
-                  Issues Found: {reviewResult.issues_count}
+                  All Issues: {reviewResult.issues_count}
                 </h3>
                 <div className="p-4 bg-gray-100 rounded-lg">
                   <ul className="list-disc pl-5 space-y-2">
-                    {reviewResult.detailed_feedback.map(
-                      (feedback: string, index: number) => (
-                        <li key={index}>{feedback}</li>
-                      )
-                    )}
+                    {reviewResult.detailed_feedback.map((feedback, index) => (
+                      <li key={index}>{feedback}</li>
+                    ))}
                   </ul>
                 </div>
               </div>
 
+              {/* Quality Score */}
               <div>
                 <h3 className="text-lg font-medium mb-2">Quality Score</h3>
                 <div className="flex items-center">
