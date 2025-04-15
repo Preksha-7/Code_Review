@@ -24,12 +24,20 @@ export const getSupportedLanguages = async () => {
     const response = await fetch(`${API_URL}/review/supported-languages`);
 
     if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+      // Fallback in case API is not available
+      return {
+        languages: [
+          { id: "python", name: "Python", description: "Python 3.x" },
+        ],
+      };
     }
 
     return response.json();
   } catch (error) {
     console.error("API error:", error);
-    throw error;
+    // Return a default value if the API is not available
+    return {
+      languages: [{ id: "python", name: "Python", description: "Python 3.x" }],
+    };
   }
 };
