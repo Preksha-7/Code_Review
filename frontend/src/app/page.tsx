@@ -11,6 +11,12 @@ interface Language {
   description: string;
 }
 
+interface FixSuggestions {
+  syntax_fixes: string[];
+  logic_fixes: string[];
+  quality_fixes: string[];
+}
+
 interface ReviewResult {
   prediction: number;
   overall_feedback: string;
@@ -18,6 +24,8 @@ interface ReviewResult {
   issues_count: number;
   syntax_errors: string[];
   logic_errors: string[];
+  code_quality_issues?: string[];
+  fix_suggestions?: FixSuggestions;
 }
 
 export default function Home() {
@@ -34,7 +42,6 @@ export default function Home() {
   useEffect(() => {
     const checkUserAuth = () => {
       try {
-        // Check for existing user
         const currentUser = getUser();
         setUser(currentUser);
       } catch (error) {
@@ -46,7 +53,6 @@ export default function Home() {
 
     checkUserAuth();
 
-    // Load supported languages
     const loadLanguages = async () => {
       try {
         setLanguagesLoading(true);
@@ -56,11 +62,6 @@ export default function Home() {
         console.error("Error loading languages:", error);
         setLanguages([
           { id: "python", name: "Python", description: "Python 3.x" },
-          {
-            id: "javascript",
-            name: "JavaScript",
-            description: "ES6+ JavaScript",
-          },
         ]);
       } finally {
         setLanguagesLoading(false);
@@ -79,13 +80,10 @@ export default function Home() {
       const email = urlParams.get("email");
       const picture = urlParams.get("picture");
 
-      // If we have auth parameters, create user object and store in localStorage
       if (authStatus === "success" && token) {
         const userData = { name, email, picture };
         localStorage.setItem("user", JSON.stringify(userData));
         localStorage.setItem("authToken", token);
-
-        // Clear URL parameters and reload
         window.history.replaceState({}, document.title, "/");
         window.location.reload();
       }
@@ -116,7 +114,6 @@ export default function Home() {
     }
   };
 
-  // Handle logout with confirmation
   const handleLogout = () => {
     if (confirm("Are you sure you want to log out?")) {
       logout();
@@ -138,7 +135,7 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center p-6 bg-gray-100">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">
-        AI Code Review Platform 🚀
+        Python Code Bug Hunter 🐍🔍
       </h1>
 
       {user ? (
@@ -167,26 +164,21 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Code Review Form */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">Code Analyzer</h2>
+            <h2 className="text-xl font-semibold mb-4">Python Code Analyzer</h2>
 
             <div className="mb-4">
-              <label
-                htmlFor="language-select"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Select Programming Language
               </label>
               <select
-                id="language-select"
-                className="w-full p-2 border rounded-lg shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none"
+                className="w-full p-2 border rounded-lg shadow-sm"
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
-                disabled={languagesLoading}
+                disabled={languagesLoading || languages.length <= 1}
               >
                 {languagesLoading ? (
-                  <option value="">Loading languages...</option>
+                  <option value="">Loading...</option>
                 ) : (
                   languages.map((lang) => (
                     <option key={lang.id} value={lang.id}>
@@ -195,28 +187,24 @@ export default function Home() {
                   ))
                 )}
               </select>
+              {selectedLanguage !== "python" && (
+                <p className="text-yellow-600 text-sm mt-1">
+                  Currently only Python analysis is fully supported
+                </p>
+              )}
             </div>
 
-            <div className="mb-4">
-              <label
-                htmlFor="code-textarea"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Your Code
-              </label>
-              <textarea
-                id="code-textarea"
-                className="w-full p-3 border rounded-lg shadow-sm font-mono text-sm h-64 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none"
-                placeholder={`Paste your ${selectedLanguage} code snippet here...`}
-                value={codeSnippet}
-                onChange={(e) => setCodeSnippet(e.target.value)}
-              ></textarea>
-            </div>
+            <textarea
+              className="w-full p-3 border rounded-lg font-mono text-sm h-64"
+              placeholder="Paste your Python code snippet here..."
+              value={codeSnippet}
+              onChange={(e) => setCodeSnippet(e.target.value)}
+            ></textarea>
 
             <button
               onClick={handleCodeSubmit}
               disabled={isAnalyzing || !codeSnippet.trim()}
-              className={`w-full px-4 py-2 rounded-lg shadow-md text-white ${
+              className={`w-full mt-4 px-4 py-2 rounded-lg shadow-md text-white ${
                 isAnalyzing || !codeSnippet.trim()
                   ? "bg-blue-400 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700"
@@ -226,7 +214,6 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Review Results */}
           {reviewResult && (
             <div className="mt-6 bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold mb-4">Analysis Results</h2>
@@ -239,107 +226,131 @@ export default function Home() {
               </div>
 
               {/* Syntax Errors */}
-              {reviewResult.syntax_errors &&
-                reviewResult.syntax_errors.length > 0 && (
-                  <div className="mb-4">
-                    <h3 className="text-lg font-medium mb-2 text-red-600">
-                      Syntax Errors: {reviewResult.syntax_errors.length}
-                    </h3>
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                      <ul className="list-disc pl-5 space-y-2">
-                        {reviewResult.syntax_errors.map((error, index) => (
-                          <li key={`syntax-${index}`} className="text-red-700">
-                            {error}
-                          </li>
-                        ))}
+              {reviewResult.syntax_errors?.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium text-red-600 mb-2">
+                    Syntax Errors: {reviewResult.syntax_errors.length}
+                  </h3>
+                  <ul className="list-disc pl-5 space-y-2 bg-red-50 p-4 rounded-lg border border-red-200">
+                    {reviewResult.syntax_errors.map((err, i) => (
+                      <li key={`se-${i}`} className="text-red-700">
+                        {err}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {reviewResult.fix_suggestions?.syntax_fixes?.length > 0 && (
+                    <div className="mt-2 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <h4 className="font-medium text-green-700 mb-2">
+                        Fix Suggestions:
+                      </h4>
+                      <ul className="list-disc pl-5 space-y-1">
+                        {reviewResult.fix_suggestions.syntax_fixes.map(
+                          (fix, i) => (
+                            <li key={`sf-${i}`} className="text-green-800">
+                              {fix}
+                            </li>
+                          )
+                        )}
                       </ul>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              )}
 
               {/* Logic Errors */}
-              {reviewResult.logic_errors &&
-                reviewResult.logic_errors.length > 0 && (
-                  <div className="mb-4">
-                    <h3 className="text-lg font-medium mb-2 text-yellow-600">
-                      Logic Issues: {reviewResult.logic_errors.length}
-                    </h3>
-                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <ul className="list-disc pl-5 space-y-2">
-                        {reviewResult.logic_errors.map((error, index) => (
-                          <li
-                            key={`logic-${index}`}
-                            className="text-yellow-700"
-                          >
-                            {error}
-                          </li>
-                        ))}
+              {reviewResult.logic_errors?.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium text-yellow-600 mb-2">
+                    Logic Errors: {reviewResult.logic_errors.length}
+                  </h3>
+                  <ul className="list-disc pl-5 space-y-2 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    {reviewResult.logic_errors.map((err, i) => (
+                      <li key={`le-${i}`} className="text-yellow-700">
+                        {err}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {reviewResult.fix_suggestions?.logic_fixes?.length > 0 && (
+                    <div className="mt-2 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <h4 className="font-medium text-green-700 mb-2">
+                        Fix Suggestions:
+                      </h4>
+                      <ul className="list-disc pl-5 space-y-1">
+                        {reviewResult.fix_suggestions.logic_fixes.map(
+                          (fix, i) => (
+                            <li key={`lf-${i}`} className="text-green-800">
+                              {fix}
+                            </li>
+                          )
+                        )}
                       </ul>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              )}
+
+              {/* Code Quality Issues */}
+              {reviewResult.code_quality_issues?.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium text-purple-600 mb-2">
+                    Code Quality Issues:{" "}
+                    {reviewResult.code_quality_issues.length}
+                  </h3>
+                  <ul className="list-disc pl-5 space-y-2 bg-purple-50 p-4 rounded-lg border border-purple-200">
+                    {reviewResult.code_quality_issues.map((issue, i) => (
+                      <li key={`cq-${i}`} className="text-purple-700">
+                        {issue}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {reviewResult.fix_suggestions?.quality_fixes?.length > 0 && (
+                    <div className="mt-2 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <h4 className="font-medium text-green-700 mb-2">
+                        Fix Suggestions:
+                      </h4>
+                      <ul className="list-disc pl-5 space-y-1">
+                        {reviewResult.fix_suggestions.quality_fixes.map(
+                          (fix, i) => (
+                            <li key={`qf-${i}`} className="text-green-800">
+                              {fix}
+                            </li>
+                          )
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Detailed Feedback */}
-              <div className="mb-4">
-                <h3 className="text-lg font-medium mb-2">
-                  All Issues: {reviewResult.issues_count}
-                </h3>
-                <div className="p-4 bg-gray-100 rounded-lg">
-                  <ul className="list-disc pl-5 space-y-2">
-                    {reviewResult.detailed_feedback.map((feedback, index) => (
-                      <li key={index}>{feedback}</li>
+              {reviewResult.detailed_feedback?.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-medium mb-2">
+                    Detailed Feedback
+                  </h3>
+                  <ul className="list-disc pl-5 space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    {reviewResult.detailed_feedback.map((feedback, i) => (
+                      <li key={`df-${i}`} className="text-gray-700">
+                        {feedback}
+                      </li>
                     ))}
                   </ul>
                 </div>
-              </div>
-
-              {/* Quality Score */}
-              <div>
-                <h3 className="text-lg font-medium mb-2">Quality Score</h3>
-                <div className="flex items-center">
-                  <div className="w-full bg-gray-200 rounded-full h-4">
-                    <div
-                      className={`h-4 rounded-full ${
-                        reviewResult.prediction > 0.7
-                          ? "bg-green-500"
-                          : reviewResult.prediction > 0.4
-                          ? "bg-yellow-500"
-                          : "bg-red-500"
-                      }`}
-                      style={{ width: `${reviewResult.prediction * 100}%` }}
-                    ></div>
-                  </div>
-                  <span className="ml-3 font-medium">
-                    {Math.round(reviewResult.prediction * 100)}%
-                  </span>
-                </div>
-              </div>
+              )}
             </div>
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-md p-8 text-center max-w-md w-full">
-          <h2 className="text-2xl font-semibold mb-6">Get Started</h2>
-          <p className="mb-6 text-gray-600">
-            Sign in with your GitHub account to use our AI-powered code review
-            platform.
-          </p>
+        <div className="text-center">
+          <p className="mb-4 text-lg">You are not logged in.</p>
           <button
             onClick={loginWithGitHub}
-            className="px-6 py-3 bg-black text-white rounded-lg shadow-md hover:bg-gray-800 flex items-center justify-center w-full"
+            className="px-6 py-3 bg-black text-white rounded-lg shadow-md hover:bg-gray-800"
           >
-            <svg
-              className="w-5 h-5 mr-2"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                fillRule="evenodd"
-                d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-                clipRule="evenodd"
-              />
-            </svg>
-            Sign in with GitHub
+            Login with GitHub
           </button>
         </div>
       )}
