@@ -1,3 +1,4 @@
+# backend/app/routes/review.py
 from fastapi import APIRouter, HTTPException, Request, Body
 from fastapi.responses import JSONResponse
 from typing import Optional, List
@@ -36,7 +37,8 @@ async def review_code(data: dict = Body(...)):
                 "detailed_feedback": ["This tool currently only supports Python code analysis."],
                 "issues_count": 1,
                 "syntax_errors": [],
-                "logic_errors": []
+                "logic_errors": [],
+                "code_quality_issues": []
             }
         
         # Analyze using PyBugHunt
@@ -57,16 +59,11 @@ async def review_code(data: dict = Body(...)):
         else:
             overall = "Code looks good! No major issues detected."
         
-        # Combine all feedback
+        # Combine all feedback into detailed_feedback
         detailed_feedback = []
         detailed_feedback.extend(analysis_result.get('syntax_errors', []))
         detailed_feedback.extend(analysis_result.get('logic_errors', []))
         detailed_feedback.extend(analysis_result.get('code_quality_issues', []))
-        
-        # Add fix suggestions to feedback if available
-        fix_suggestions = analysis_result.get('fix_suggestions', {})
-        for fix_type, fixes in fix_suggestions.items():
-            detailed_feedback.extend(fixes)
         
         if not detailed_feedback:
             detailed_feedback.append("No specific issues detected.")
@@ -78,51 +75,10 @@ async def review_code(data: dict = Body(...)):
             "issues_count": total_issues,
             "syntax_errors": analysis_result.get('syntax_errors', []),
             "logic_errors": analysis_result.get('logic_errors', []),
+            "code_quality_issues": analysis_result.get('code_quality_issues', []),
             "fix_suggestions": analysis_result.get('fix_suggestions', {})
         }
     
     except Exception as e:
         logger.error(f"Code analysis error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Code analysis failed: {str(e)}")
-
-@router.get("/supported-languages")
-async def get_supported_languages():
-    """
-    Returns a list of supported programming languages for code analysis
-    
-    Returns:
-        dict: List of supported languages with their identifiers
-    """
-    # Currently only supporting Python
-    supported_languages = [
-        {"id": "python", "name": "Python", "description": "Python 3.x"},
-    ]
-    
-    return {"languages": supported_languages}
-
-@router.post("/feedback")
-async def submit_feedback(data: dict = Body(...)):
-    """
-    Submit feedback on code analysis to improve the analysis
-    
-    Args:
-        data (dict): A dictionary containing feedback data
-        
-    Returns:
-        dict: Confirmation message
-    """
-    try:
-        code_snippet = data.get('code', '')
-        user_score = data.get('user_score', 0)
-        model_score = data.get('model_score', 0)
-        issues = data.get('issues', [])
-        missed_issues = data.get('missed_issues', [])
-        false_positives = data.get('false_positives', [])
-        
-        logger.info(f"Received feedback: user_score={user_score}, model_score={model_score}")
-        
-        return {"status": "success", "message": "Feedback received successfully"}
-        
-    except Exception as e:
-        logger.error(f"Error processing feedback: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to process feedback")

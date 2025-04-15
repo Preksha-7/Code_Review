@@ -38,6 +38,7 @@ export default function Home() {
   const [selectedLanguage, setSelectedLanguage] = useState("python");
   const [languages, setLanguages] = useState<Language[]>([]);
   const [languagesLoading, setLanguagesLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   useEffect(() => {
     const checkUserAuth = () => {
@@ -97,18 +98,15 @@ export default function Home() {
 
     try {
       setIsAnalyzing(true);
+      setAnalysisError(null);
       const response = await analyzeCode(codeSnippet, selectedLanguage);
       setReviewResult(response);
     } catch (error) {
       console.error("Error analyzing code:", error);
-      setReviewResult({
-        overall_feedback: "An error occurred while analyzing the code.",
-        detailed_feedback: ["Please try again later."],
-        issues_count: 0,
-        prediction: 0,
-        syntax_errors: [],
-        logic_errors: [],
-      });
+      setAnalysisError(
+        "An error occurred while analyzing the code. Please try again later."
+      );
+      setReviewResult(null);
     } finally {
       setIsAnalyzing(false);
     }
@@ -119,6 +117,27 @@ export default function Home() {
       logout();
       setUser(null);
     }
+  };
+
+  const qualityScoreColor = (score: number) => {
+    if (score >= 0.7) return "text-green-600";
+    if (score >= 0.4) return "text-yellow-600";
+    return "text-red-600";
+  };
+
+  const renderQualityBar = (score: number) => {
+    let barColor = "bg-red-500";
+    if (score >= 0.7) barColor = "bg-green-500";
+    else if (score >= 0.4) barColor = "bg-yellow-500";
+
+    return (
+      <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+        <div
+          className={`${barColor} h-2.5 rounded-full`}
+          style={{ width: `${Math.round(score * 100)}%` }}
+        ></div>
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -166,6 +185,9 @@ export default function Home() {
 
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-semibold mb-4">Python Code Analyzer</h2>
+            <p className="text-gray-600 mb-4">
+              Using PyBugHunt for intelligent code analysis and bug detection
+            </p>
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -189,7 +211,7 @@ export default function Home() {
               </select>
               {selectedLanguage !== "python" && (
                 <p className="text-yellow-600 text-sm mt-1">
-                  Currently only Python analysis is fully supported
+                  Currently only Python analysis is fully supported by PyBugHunt
                 </p>
               )}
             </div>
@@ -210,15 +232,39 @@ export default function Home() {
                   : "bg-blue-600 hover:bg-blue-700"
               }`}
             >
-              {isAnalyzing ? "Analyzing..." : "Analyze Code"}
+              {isAnalyzing ? "Analyzing with PyBugHunt..." : "Analyze Code"}
             </button>
           </div>
 
+          {analysisError && (
+            <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+              {analysisError}
+            </div>
+          )}
+
           {reviewResult && (
             <div className="mt-6 bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4">Analysis Results</h2>
+              <h2 className="text-xl font-semibold mb-4">
+                PyBugHunt Analysis Results
+              </h2>
 
-              <div className="mb-4">
+              <div className="mb-6">
+                <h3 className="text-lg font-medium mb-2">Quality Score</h3>
+                <div className="flex items-center">
+                  <div className="flex-1 mr-4">
+                    {renderQualityBar(reviewResult.prediction)}
+                  </div>
+                  <span
+                    className={`text-lg font-bold ${qualityScoreColor(
+                      reviewResult.prediction
+                    )}`}
+                  >
+                    {Math.round(reviewResult.prediction * 100)}%
+                  </span>
+                </div>
+              </div>
+
+              <div className="mb-6">
                 <h3 className="text-lg font-medium mb-2">Overall Feedback</h3>
                 <div className="p-4 bg-gray-100 rounded-lg">
                   <p>{reviewResult.overall_feedback}</p>
@@ -227,7 +273,7 @@ export default function Home() {
 
               {/* Syntax Errors */}
               {reviewResult.syntax_errors?.length > 0 && (
-                <div className="mb-4">
+                <div className="mb-6">
                   <h3 className="text-lg font-medium text-red-600 mb-2">
                     Syntax Errors: {reviewResult.syntax_errors.length}
                   </h3>
@@ -239,28 +285,30 @@ export default function Home() {
                     ))}
                   </ul>
 
-                  {reviewResult.fix_suggestions?.syntax_fixes?.length > 0 && (
-                    <div className="mt-2 p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <h4 className="font-medium text-green-700 mb-2">
-                        Fix Suggestions:
-                      </h4>
-                      <ul className="list-disc pl-5 space-y-1">
-                        {reviewResult.fix_suggestions.syntax_fixes.map(
-                          (fix, i) => (
-                            <li key={`sf-${i}`} className="text-green-800">
-                              {fix}
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    </div>
-                  )}
+                  {reviewResult.fix_suggestions &&
+                    reviewResult.fix_suggestions.syntax_fixes &&
+                    reviewResult.fix_suggestions.syntax_fixes.length > 0 && (
+                      <div className="mt-2 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <h4 className="font-medium text-green-700 mb-2">
+                          Fix Suggestions:
+                        </h4>
+                        <ul className="list-disc pl-5 space-y-1">
+                          {reviewResult.fix_suggestions.syntax_fixes.map(
+                            (fix, i) => (
+                              <li key={`sf-${i}`} className="text-green-800">
+                                {fix}
+                              </li>
+                            )
+                          )}
+                        </ul>
+                      </div>
+                    )}
                 </div>
               )}
 
               {/* Logic Errors */}
               {reviewResult.logic_errors?.length > 0 && (
-                <div className="mb-4">
+                <div className="mb-6">
                   <h3 className="text-lg font-medium text-yellow-600 mb-2">
                     Logic Errors: {reviewResult.logic_errors.length}
                   </h3>
@@ -272,80 +320,97 @@ export default function Home() {
                     ))}
                   </ul>
 
-                  {reviewResult.fix_suggestions?.logic_fixes?.length > 0 && (
-                    <div className="mt-2 p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <h4 className="font-medium text-green-700 mb-2">
-                        Fix Suggestions:
-                      </h4>
-                      <ul className="list-disc pl-5 space-y-1">
-                        {reviewResult.fix_suggestions.logic_fixes.map(
-                          (fix, i) => (
-                            <li key={`lf-${i}`} className="text-green-800">
-                              {fix}
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    </div>
-                  )}
+                  {reviewResult.fix_suggestions &&
+                    reviewResult.fix_suggestions.logic_fixes &&
+                    reviewResult.fix_suggestions.logic_fixes.length > 0 && (
+                      <div className="mt-2 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <h4 className="font-medium text-green-700 mb-2">
+                          Fix Suggestions:
+                        </h4>
+                        <ul className="list-disc pl-5 space-y-1">
+                          {reviewResult.fix_suggestions.logic_fixes.map(
+                            (fix, i) => (
+                              <li key={`lf-${i}`} className="text-green-800">
+                                {fix}
+                              </li>
+                            )
+                          )}
+                        </ul>
+                      </div>
+                    )}
                 </div>
               )}
 
               {/* Code Quality Issues */}
-              {reviewResult.code_quality_issues?.length > 0 && (
-                <div className="mb-4">
-                  <h3 className="text-lg font-medium text-purple-600 mb-2">
-                    Code Quality Issues:{" "}
-                    {reviewResult.code_quality_issues.length}
-                  </h3>
-                  <ul className="list-disc pl-5 space-y-2 bg-purple-50 p-4 rounded-lg border border-purple-200">
-                    {reviewResult.code_quality_issues.map((issue, i) => (
-                      <li key={`cq-${i}`} className="text-purple-700">
-                        {issue}
-                      </li>
-                    ))}
-                  </ul>
+              {reviewResult.code_quality_issues &&
+                reviewResult.code_quality_issues.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-medium text-purple-600 mb-2">
+                      Code Quality Issues:{" "}
+                      {reviewResult.code_quality_issues.length}
+                    </h3>
+                    <ul className="list-disc pl-5 space-y-2 bg-purple-50 p-4 rounded-lg border border-purple-200">
+                      {reviewResult.code_quality_issues.map((issue, i) => (
+                        <li key={`cq-${i}`} className="text-purple-700">
+                          {issue}
+                        </li>
+                      ))}
+                    </ul>
 
-                  {reviewResult.fix_suggestions?.quality_fixes?.length > 0 && (
-                    <div className="mt-2 p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <h4 className="font-medium text-green-700 mb-2">
-                        Fix Suggestions:
-                      </h4>
-                      <ul className="list-disc pl-5 space-y-1">
-                        {reviewResult.fix_suggestions.quality_fixes.map(
-                          (fix, i) => (
-                            <li key={`qf-${i}`} className="text-green-800">
-                              {fix}
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    </div>
-                  )}
+                    {reviewResult.fix_suggestions &&
+                      reviewResult.fix_suggestions.quality_fixes &&
+                      reviewResult.fix_suggestions.quality_fixes.length > 0 && (
+                        <div className="mt-2 p-4 bg-green-50 border border-green-200 rounded-lg">
+                          <h4 className="font-medium text-green-700 mb-2">
+                            Fix Suggestions:
+                          </h4>
+                          <ul className="list-disc pl-5 space-y-1">
+                            {reviewResult.fix_suggestions.quality_fixes.map(
+                              (fix, i) => (
+                                <li key={`qf-${i}`} className="text-green-800">
+                                  {fix}
+                                </li>
+                              )
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                  </div>
+                )}
+              {/* Issue Summary */}
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h3 className="text-lg font-medium text-blue-700 mb-2">
+                  Issue Summary
+                </h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                    <span className="text-red-600 font-bold text-xl block">
+                      {reviewResult.syntax_errors?.length || 0}
+                    </span>
+                    <span className="text-gray-600">Syntax Errors</span>
+                  </div>
+                  <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                    <span className="text-yellow-600 font-bold text-xl block">
+                      {reviewResult.logic_errors?.length || 0}
+                    </span>
+                    <span className="text-gray-600">Logic Errors</span>
+                  </div>
+                  <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                    <span className="text-purple-600 font-bold text-xl block">
+                      {reviewResult.code_quality_issues?.length || 0}
+                    </span>
+                    <span className="text-gray-600">Quality Issues</span>
+                  </div>
                 </div>
-              )}
-
-              {/* Detailed Feedback */}
-              {reviewResult.detailed_feedback?.length > 0 && (
-                <div className="mt-6">
-                  <h3 className="text-lg font-medium mb-2">
-                    Detailed Feedback
-                  </h3>
-                  <ul className="list-disc pl-5 space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    {reviewResult.detailed_feedback.map((feedback, i) => (
-                      <li key={`df-${i}`} className="text-gray-700">
-                        {feedback}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              </div>
             </div>
           )}
         </div>
       ) : (
         <div className="text-center">
-          <p className="mb-4 text-lg">You are not logged in.</p>
+          <p className="mb-4 text-lg">
+            Sign in to use the PyBugHunt code analyzer
+          </p>
           <button
             onClick={loginWithGitHub}
             className="px-6 py-3 bg-black text-white rounded-lg shadow-md hover:bg-gray-800"
