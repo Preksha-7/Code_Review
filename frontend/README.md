@@ -232,9 +232,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 Project Lead: Preksha Upadhyay
 Email: prekshau03@gmail.com
-
----
-
-## Resume Description
-
-Developed PyBugHunt, an AI-powered Python code analysis platform utilizing CodeBERT to detect syntax errors, logic bugs, and quality issues with fix suggestions. Built with FastAPI backend and Next.js/React frontend, featuring GitHub OAuth authentication and delivering comprehensive code quality scores with visual feedback.
